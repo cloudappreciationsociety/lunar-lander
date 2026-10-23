@@ -27,10 +27,7 @@ GameStatus gGameStatus = GameStatus::IN_PROGRESS;
 float gTimeAccumulator = 0.0f;
 float gPreviousTimestampSec = 0.0f;
 
-float gRoundStartTime = 0.0f;
-float gRoundElapsedTime = 0.0f;
-
-Color gBackgroundColor = BLACK;
+Color gBackgroundColor = SKYBLUE;
 
 float gRoundCountdown = constants::ROUND_COUNTDOWN_SEC;
 
@@ -42,7 +39,9 @@ TextButton gBackToMenuButton;
 TextButton gPlayButton;
 TextButton gQuitButton;
 
+TextureAsset* gGrassTileTexture = nullptr;
 SpyBalloon* gSpyBalloon = nullptr;
+std::vector<PhysicsEntity*> gMapTiles;
 
 void resetGame() {
     gRoundCountdown = constants::ROUND_COUNTDOWN_SEC;
@@ -55,14 +54,52 @@ void initialize() {
 
     SetTargetFPS(constants::TARGET_FPS);
 
+    // Textures
     TextureAsset* spyBalloonTexture =
-        TextureAsset::create(new TextureAsset("assets/textures/ai.png"));
+        TextureAsset::create(new TextureAsset("spy_balloon", "assets/textures/ai.png"));
     spyBalloonTexture->type = TextureType::SINGLE;
 
-    gSpyBalloon = Entity::create(new SpyBalloon(spyBalloonTexture));
+    gGrassTileTexture =
+        TextureAsset::create(new TextureAsset("grass_tile", "assets/textures/grass-tile.png"));
+    gGrassTileTexture->type = TextureType::SINGLE;
+
+    TextureAsset* explosionTexture =
+        TextureAsset::create(new TextureAsset("explosion", "assets/textures/explosion.png"));
+    explosionTexture->type = TextureType::ATLAS;
+    explosionTexture->spriteSheetDimensions = {4, 4};
+
+    TextureAsset* fighterJetTexture =
+        TextureAsset::create(new TextureAsset("fighter_jet", "assets/textures/fighter-jet.png"));
+    fighterJetTexture->type = TextureType::ATLAS;
+    fighterJetTexture->spriteSheetDimensions = {4, 1};
+
+    TextureAsset* missileTexture =
+        TextureAsset::create(new TextureAsset("missile", "assets/textures/missile.png"));
+    missileTexture->type = TextureType::ATLAS;
+    missileTexture->spriteSheetDimensions = {3, 1};
+
+    // Entities
+    gSpyBalloon = Entity::create(new SpyBalloon);
     gSpyBalloon->position = constants::SCREEN_CENTER;
-    gSpyBalloon->scale = {250.0f, 250.0f};
+    gSpyBalloon->position.y = 100.0f;
+
+    gSpyBalloon->scale = {50.0f, 50.0f};
     gSpyBalloon->colliderDimensions = Vector2Scale(gSpyBalloon->scale, 1.0f);
+    gSpyBalloon->acceleration.y = constants::G_ACCEL;
+
+    Vector2 tileSize = {50.0f, 50.0f};
+    int32_t tileCount = constants::SCREEN_WIDTH / tileSize.x;
+
+    float leftMostX = constants::SCREEN_CENTER.x - (tileCount * tileSize.x) / 2.0f;
+
+    for (int32_t i = 0; i < tileCount; ++i) {
+        auto tile = Entity::create(new PhysicsEntity(gGrassTileTexture));
+        tile->scale = tileSize;
+        tile->colliderDimensions = tile->scale;
+        tile->position = {leftMostX + i * tileSize.x, constants::SCREEN_HEIGHT - tileSize.y / 2.0f};
+
+        gMapTiles.push_back(tile);
+    }
 
     // Backgrounds
     // Sets player positions, zeroes out scores, etc.
@@ -88,6 +125,8 @@ void initialize() {
     gQuitButton.backgroundColor = RED;
     gQuitButton.hoverColor = PINK;
     gQuitButton.text = "QUIT";
+
+    gPreviousTimestampSec = static_cast<float>(GetTime());
 }
 
 void processInput() {
@@ -111,6 +150,18 @@ void processInput() {
             break;
         }
         case (GameStatus::IN_PROGRESS): {
+            gSpyBalloon->resetMoveDirection();
+
+            if (IsKeyDown(KeyboardKey::KEY_W)) {
+                gSpyBalloon->onInput(KeyboardKey::KEY_W);
+            }
+
+            if (IsKeyDown(KeyboardKey::KEY_A)) {
+                gSpyBalloon->onInput(KeyboardKey::KEY_A);
+            } else if (IsKeyDown(KeyboardKey::KEY_D)) {
+                gSpyBalloon->onInput(KeyboardKey::KEY_D);
+            }
+
             break;
         }
         case (GameStatus::ENDED): {
@@ -141,25 +192,18 @@ void updateGameStarting(float deltaTime) {
 
     if (gRoundCountdown == 0.0f) {
         gGameStatus = GameStatus::IN_PROGRESS;
-        gRoundStartTime = static_cast<float>(GetTime());
     }
 }
 
 void updateGameInProgress(float deltaTime) {
-    gRoundElapsedTime = static_cast<float>(GetTime()) - gRoundStartTime;
-
-    // Delete pucks over our limit
-
     for (auto& pair : Entity::registry()) {
         pair.second->update(deltaTime);
     }
 
     // Collisions
-    for (auto& pair : Entity::registry()) {}
+    gSpyBalloon->setCollisionCandidates(gMapTiles);
 
-    if (gRoundElapsedTime >= constants::ROUND_MAX_TIME_SEC) {
-        gGameStatus = GameStatus::ENDED;
-    }
+    for (auto& pair : Entity::registry()) {}
 }
 
 void update() {
@@ -191,11 +235,11 @@ void update() {
                 break;
             }
             case (GameStatus::STARTING): {
-                updateGameStarting(deltaTime);
+                updateGameStarting(constants::FIXED_TIMESTEP);
                 break;
             }
             case (GameStatus::IN_PROGRESS): {
-                updateGameInProgress(deltaTime);
+                updateGameInProgress(constants::FIXED_TIMESTEP);
                 break;
             }
             case (GameStatus::ENDED): {
@@ -246,17 +290,6 @@ void render() {
             break;
         }
         case (GameStatus::IN_PROGRESS): {
-            // Round timer
-            drawText(
-                TextFormat(
-                    "%03i",
-                    static_cast<int>(std::ceil(constants::ROUND_MAX_TIME_SEC - gRoundElapsedTime))
-                ),
-                {constants::SCREEN_CENTER.x, constants::ui::SCORE_Y_POS},
-                constants::ui::HEADER_FONT_SIZE,
-                WHITE
-            );
-
             break;
         }
         case (GameStatus::ENDED): {
@@ -276,6 +309,7 @@ void render() {
 
 void shutdown() {
     Entity::registry().clear();
+    TextureAsset::registry().clear();
 
     CloseWindow();
 }

@@ -8,7 +8,7 @@
 namespace constants {
 
 constexpr int32_t SCREEN_WIDTH = 1600;
-constexpr int32_t SCREEN_HEIGHT = 900;
+constexpr int32_t SCREEN_HEIGHT = 1200;
 constexpr int32_t TARGET_FPS = 60;
 constexpr Vector2 SCREEN_CENTER = {SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f};
 constexpr Vector2 SCREEN_SIZE = {
@@ -16,7 +16,7 @@ constexpr Vector2 SCREEN_SIZE = {
     static_cast<float>(SCREEN_HEIGHT)
 };
 
-constexpr float G_ACCEL = 90.0f;
+constexpr float G_ACCEL = 9.0f;
 
 constexpr float FIXED_TIMESTEP = 1.0f / TARGET_FPS;
 

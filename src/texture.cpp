@@ -1,14 +1,16 @@
 #include "texture.h"
 
-uint32_t TextureAsset::idCounter = 0;
-
-std::map<uint32_t, std::unique_ptr<TextureAsset>>& TextureAsset::registry() {
-    static std::map<uint32_t, std::unique_ptr<TextureAsset>> registry;
+std::map<std::string, std::unique_ptr<TextureAsset>>& TextureAsset::registry() {
+    static std::map<std::string, std::unique_ptr<TextureAsset>> registry;
     return registry;
 }
 
-TextureAsset::TextureAsset(const std::string& pathToTexture) :
-    id(TextureAsset::idCounter++),
+TextureAsset* TextureAsset::get(const std::string& alias) {
+    return TextureAsset::registry().at(alias).get();
+}
+
+TextureAsset::TextureAsset(const std::string& alias, const std::string& pathToTexture) :
+    alias(alias),
     texture(LoadTexture(pathToTexture.c_str())) {}
 
 TextureAsset::~TextureAsset() {

@@ -11,11 +11,8 @@ enum class TextureType { SINGLE, ATLAS };
 // TextureAsset is responsible for loading and unloading raylib textures.
 class TextureAsset {
 private:
-    static uint32_t idCounter;
-
-private:
     Texture2D texture; // Immutable once loaded
-    const uint32_t id;
+    const std::string alias;
 
 public:
     TextureType type = TextureType::SINGLE;
@@ -24,17 +21,18 @@ public:
 
 public:
     // Similar class-centralized registry spiel to Entity
-    static std::map<uint32_t, std::unique_ptr<TextureAsset>>& registry();
+    static std::map<std::string, std::unique_ptr<TextureAsset>>& registry();
+    static TextureAsset* get(const std::string& alias);
 
     template<typename T>
     static T* create(T* object) {
         auto ptr = std::unique_ptr<T>(object);
         T* outPtr = ptr.get();
-        TextureAsset::registry().emplace(ptr->id, std::move(ptr));
+        TextureAsset::registry().emplace(ptr->alias, std::move(ptr));
         return outPtr;
     }
 
-    TextureAsset(const std::string& pathToTexture);
+    TextureAsset(const std::string& alias, const std::string& pathToTexture);
     ~TextureAsset();
 
     const Texture2D& getTexture2D() const {

@@ -73,7 +73,7 @@ void PhysicsEntity::resetColliderFlags() {
  */
 bool PhysicsEntity::isColliding(const PhysicsEntity* other) const {
     float xDistance = fabs(this->position.x - other->position.x)
-        - ((this->colliderDimensions.x + other->position.x) / 2.0f);
+        - ((this->colliderDimensions.x + other->colliderDimensions.x) / 2.0f);
     float yDistance = fabs(this->position.y - other->position.y)
         - ((this->colliderDimensions.y + other->colliderDimensions.y) / 2.0f);
 
@@ -114,12 +114,16 @@ void PhysicsEntity::checkCollisionsX() {
 
             // Collision!
             this->isCollidingRight = true;
+
+            this->collisions.push_back({collidableEntity, CollisionFace::RIGHT});
         } else if (this->velocity.x < 0) {
             this->position.x += xOverlap;
             this->velocity.x = 0;
 
             // Collision!
             this->isCollidingLeft = true;
+
+            this->collisions.push_back({collidableEntity, CollisionFace::LEFT});
         }
     }
 }
@@ -161,11 +165,33 @@ void PhysicsEntity::checkCollisionsY() {
             this->position.y -= yOverlap;
             this->velocity.y = 0;
             this->isCollidingBottom = true;
+
+            this->collisions.push_back({collidableEntity, CollisionFace::BOTTOM});
         } else if (this->velocity.y < 0) {
             this->position.y += yOverlap;
             this->velocity.y = 0;
             this->isCollidingTop = true;
+
+            this->collisions.push_back({collidableEntity, CollisionFace::TOP});
         }
+    }
+}
+
+void PhysicsEntity::collideAndMove(float deltaTime) {
+    this->resetColliderFlags();
+    this->collisions.clear();
+
+    this->velocity.x += this->acceleration.x * deltaTime;
+    this->velocity.y += this->acceleration.y * deltaTime;
+
+    this->position.y += this->velocity.y * deltaTime;
+    this->checkCollisionsY();
+
+    this->position.x += this->velocity.x * deltaTime;
+    this->checkCollisionsX();
+
+    for (const auto& collision : this->collisions) {
+        this->handleCollision(collision);
     }
 }
 
@@ -187,13 +213,11 @@ void PhysicsEntity::displayCollider() const {
     );
 }
 
-void PhysicsEntity::setCollisionCandidates(const std::vector<Entity*>& entities) {
+void PhysicsEntity::setCollisionCandidates(const std::vector<PhysicsEntity*>& entities) {
     this->collisionCandidates.clear();
 
     for (auto e : entities) {
-        if (PhysicsEntity* candidate = dynamic_cast<PhysicsEntity*>(e)) {
-            this->collisionCandidates.push_back(candidate);
-        }
+        this->collisionCandidates.push_back(e);
     }
 }
 
@@ -202,16 +226,7 @@ void PhysicsEntity::update(float deltaTime) {
         return;
     }
 
-    this->resetColliderFlags();
-
-    this->velocity.x += this->acceleration.x * deltaTime;
-    this->velocity.y += this->acceleration.y * deltaTime;
-
-    this->position.y += this->velocity.y * deltaTime;
-    this->checkCollisionsY();
-
-    this->position.x += this->velocity.x * deltaTime;
-    this->checkCollisionsX();
+    this->collideAndMove(deltaTime);
 
     if (this->shouldAnimate()) {
         this->texture.animate(deltaTime);

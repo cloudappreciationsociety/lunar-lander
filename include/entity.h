@@ -8,6 +8,7 @@
 #include "texture.h"
 
 enum class Direction { LEFT, UP, RIGHT, DOWN }; // For movement
+enum class CollisionFace { TOP, BOTTOM, LEFT, RIGHT };
 
 enum class EntityStatus { ACTIVE, INACTIVE };
 
@@ -28,8 +29,6 @@ public:
     float angle = 0.0f;
 
     EntityStatus status = EntityStatus::ACTIVE;
-
-    Direction direction;
 
 protected:
     virtual bool shouldAnimate() const;
@@ -83,32 +82,44 @@ class PhysicsEntity: public Entity {
 private:
     static constexpr float Y_COLLISION_THRESHOLD = 0.5f;
 
-protected:
-    Vector2 velocity = {0.0f, 0.0f};
-    Vector2 acceleration = {0.0f, 0.0f};
+public:
+    struct Collision {
+        PhysicsEntity* entity;
+        CollisionFace face;
+    };
 
+protected:
     bool isCollidingTop = false;
     bool isCollidingBottom = false;
     bool isCollidingRight = false;
     bool isCollidingLeft = false;
 
     std::vector<PhysicsEntity*> collisionCandidates;
+    std::vector<Collision> collisions;
 
 public:
+    Vector2 velocity = {0.0f, 0.0f};
+    Vector2 acceleration = {0.0f, 0.0f};
     Vector2 colliderDimensions = {0.0f, 0.0f};
 
-protected:
+private:
     void resetColliderFlags();
     bool isColliding(const PhysicsEntity* other) const;
     void checkCollisionsX();
     void checkCollisionsY();
 
+protected:
+    void collideAndMove(float deltaTime);
     void displayCollider() const;
+
+    virtual void handleCollision(Collision collision) {
+        return;
+    }
 
 public:
     using Entity::Entity;
 
-    void setCollisionCandidates(const std::vector<Entity*>& entities);
+    void setCollisionCandidates(const std::vector<PhysicsEntity*>& entities);
     void update(float deltaTime) override;
     void render() const override;
 };
