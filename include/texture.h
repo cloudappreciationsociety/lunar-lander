@@ -35,6 +35,8 @@ public:
     TextureAsset(const std::string& alias, const std::string& pathToTexture);
     ~TextureAsset();
 
+    void useDefaultAnimation();
+
     const Texture2D& getTexture2D() const {
         return this->texture;
     }
@@ -52,6 +54,7 @@ private:
 public:
     Vector2 uvOrigin = {0.0f, 0.0f};
     Vector2 uvSize;
+    Color tint = WHITE;
 
     // For animations
     int32_t currentAnimation = 0;
@@ -71,9 +74,14 @@ public:
 
     void loadAsset(const TextureAsset* asset);
 
-    void render(Rectangle destination, Vector2 origin, float angle, Color tint) const;
+    void render(Rectangle destination, Vector2 origin, float angle) const;
 
     void animate(float deltaTime);
+
+    void setDuration(float duration) {
+        this->frameSpeed =
+            static_cast<uint32_t>(this->getCurrentAnimationFrames().size() / duration);
+    }
 };
 
 #endif

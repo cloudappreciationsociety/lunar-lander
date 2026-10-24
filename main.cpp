@@ -16,6 +16,7 @@
 #include "constants.h"
 #include "entity.h"
 #include "lib.h"
+#include "military.h"
 #include "spy_balloon.h"
 #include "ui.h"
 
@@ -31,10 +32,6 @@ Color gBackgroundColor = SKYBLUE;
 
 float gRoundCountdown = constants::ROUND_COUNTDOWN_SEC;
 
-std::random_device randomDevice;
-std::mt19937 generator(randomDevice());
-std::uniform_real_distribution<float> puck_rng(0.0f, 1.0f);
-
 TextButton gBackToMenuButton;
 TextButton gPlayButton;
 TextButton gQuitButton;
@@ -42,6 +39,7 @@ TextButton gQuitButton;
 TextureAsset* gGrassTileTexture = nullptr;
 SpyBalloon* gSpyBalloon = nullptr;
 std::vector<PhysicsEntity*> gMapTiles;
+Military* gMilitary = nullptr;
 
 void resetGame() {
     gRoundCountdown = constants::ROUND_COUNTDOWN_SEC;
@@ -67,16 +65,19 @@ void initialize() {
         TextureAsset::create(new TextureAsset("explosion", "assets/textures/explosion.png"));
     explosionTexture->type = TextureType::ATLAS;
     explosionTexture->spriteSheetDimensions = {4, 4};
+    explosionTexture->useDefaultAnimation();
 
     TextureAsset* fighterJetTexture =
         TextureAsset::create(new TextureAsset("fighter_jet", "assets/textures/fighter-jet.png"));
     fighterJetTexture->type = TextureType::ATLAS;
-    fighterJetTexture->spriteSheetDimensions = {4, 1};
+    fighterJetTexture->spriteSheetDimensions = {1, 4};
+    fighterJetTexture->useDefaultAnimation();
 
     TextureAsset* missileTexture =
         TextureAsset::create(new TextureAsset("missile", "assets/textures/missile.png"));
     missileTexture->type = TextureType::ATLAS;
-    missileTexture->spriteSheetDimensions = {3, 1};
+    missileTexture->spriteSheetDimensions = {1, 3};
+    missileTexture->useDefaultAnimation();
 
     // Entities
     gSpyBalloon = Entity::create(new SpyBalloon);
@@ -86,6 +87,8 @@ void initialize() {
     gSpyBalloon->scale = {50.0f, 50.0f};
     gSpyBalloon->colliderDimensions = Vector2Scale(gSpyBalloon->scale, 1.0f);
     gSpyBalloon->acceleration.y = constants::G_ACCEL;
+
+    gMilitary = new Military(gSpyBalloon);
 
     Vector2 tileSize = {50.0f, 50.0f};
     int32_t tileCount = constants::SCREEN_WIDTH / tileSize.x;
@@ -97,6 +100,7 @@ void initialize() {
         tile->scale = tileSize;
         tile->colliderDimensions = tile->scale;
         tile->position = {leftMostX + i * tileSize.x, constants::SCREEN_HEIGHT - tileSize.y / 2.0f};
+        tile->anchored = true;
 
         gMapTiles.push_back(tile);
     }
@@ -196,11 +200,22 @@ void updateGameStarting(float deltaTime) {
 }
 
 void updateGameInProgress(float deltaTime) {
+    gMilitary->update(deltaTime);
+
+    // Collisions
+    for (auto& pair : Entity::registry()) {
+        Entity* ptr = pair.second.get();
+        if (auto mv = dynamic_cast<MilitaryVehicle*>(ptr)) {
+            mv->setCollisionCandidates(gMilitary->vehicleCollisionCandidates);
+        } else if (auto missile = dynamic_cast<Missile*>(ptr)) {
+            missile->setCollisionCandidates(gMilitary->projectileCollisionCandidates);
+        }
+    }
+
     for (auto& pair : Entity::registry()) {
         pair.second->update(deltaTime);
     }
 
-    // Collisions
     gSpyBalloon->setCollisionCandidates(gMapTiles);
 
     for (auto& pair : Entity::registry()) {}
@@ -290,6 +305,13 @@ void render() {
             break;
         }
         case (GameStatus::IN_PROGRESS): {
+            drawText(
+                TextFormat("Fuel: %i", static_cast<int32_t>(std::ceil(gSpyBalloon->fuel))),
+                constants::SCREEN_CENTER,
+                constants::ui::HEADER_FONT_SIZE,
+                WHITE
+            );
+
             break;
         }
         case (GameStatus::ENDED): {
@@ -308,6 +330,8 @@ void render() {
 }
 
 void shutdown() {
+    delete gMilitary;
+
     Entity::registry().clear();
     TextureAsset::registry().clear();
 

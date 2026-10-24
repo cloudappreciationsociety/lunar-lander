@@ -102,6 +102,9 @@ public:
     Vector2 acceleration = {0.0f, 0.0f};
     Vector2 colliderDimensions = {0.0f, 0.0f};
 
+    // If true, this object will not move in collideAndMove.
+    bool anchored = false;
+
 private:
     void resetColliderFlags();
     bool isColliding(const PhysicsEntity* other) const;
@@ -112,6 +115,12 @@ protected:
     void collideAndMove(float deltaTime);
     void displayCollider() const;
 
+    bool isOutOfBounds() const;
+
+    virtual bool canCollideWith(const PhysicsEntity* other) const {
+        return other != this;
+    }
+
     virtual void handleCollision(Collision collision) {
         return;
     }
@@ -120,6 +129,7 @@ public:
     using Entity::Entity;
 
     void setCollisionCandidates(const std::vector<PhysicsEntity*>& entities);
+    void applyForce();
     void update(float deltaTime) override;
     void render() const override;
 };

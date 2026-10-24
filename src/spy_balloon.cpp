@@ -51,8 +51,10 @@ void SpyBalloon::update(float deltaTime) {
 
     if (this->moveDirection.x == 1.0f) {
         this->acceleration.x = SpyBalloon::MOVE_ACCEL_X;
+        this->addFuel(SpyBalloon::MOVE_FUEL_DRAIN);
     } else if (this->moveDirection.x == -1.0f) {
         this->acceleration.x = -SpyBalloon::MOVE_ACCEL_X;
+        this->addFuel(SpyBalloon::MOVE_FUEL_DRAIN);
     } else {
         float dragForce = -SpyBalloon::DRAG * this->velocity.x;
 
@@ -76,3 +78,5 @@ void SpyBalloon::render() const {
 }
 
 void SpyBalloon::takeDamage(float damage, Vector2 damageOrigin) {}
+
+void SpyBalloon::handleCollision(PhysicsEntity::Collision collision) {}

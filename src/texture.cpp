@@ -17,6 +17,15 @@ TextureAsset::~TextureAsset() {
     UnloadTexture(this->texture);
 }
 
+void TextureAsset::useDefaultAnimation() {
+    int32_t totalFrames =
+        static_cast<int32_t>(this->spriteSheetDimensions.x * this->spriteSheetDimensions.y);
+
+    for (int32_t i = 0; i < totalFrames; ++i) {
+        this->animationSpriteSheetFrames[0].push_back(i);
+    }
+}
+
 Rectangle TextureAsset::getTextureArea(int32_t sliceIndex) const {
     return getUVRectangle(
         &this->getTexture2D(),
@@ -48,7 +57,7 @@ void EntityTexture::loadAsset(const TextureAsset* asset) {
     this->currentAnimationFrameIndex = 0;
 }
 
-void EntityTexture::render(Rectangle destination, Vector2 origin, float angle, Color tint) const {
+void EntityTexture::render(Rectangle destination, Vector2 origin, float angle) const {
     Rectangle textureArea;
 
     switch (this->asset->type) {
@@ -68,7 +77,14 @@ void EntityTexture::render(Rectangle destination, Vector2 origin, float angle, C
             break;
     }
 
-    DrawTexturePro(this->asset->getTexture2D(), textureArea, destination, origin, angle, tint);
+    DrawTexturePro(
+        this->asset->getTexture2D(),
+        textureArea,
+        destination,
+        origin,
+        angle,
+        this->tint
+    );
 }
 
 void EntityTexture::animate(float deltaTime) {

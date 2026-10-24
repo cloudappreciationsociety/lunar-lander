@@ -20,27 +20,13 @@ constexpr float G_ACCEL = 9.0f;
 
 constexpr float FIXED_TIMESTEP = 1.0f / TARGET_FPS;
 
-constexpr static float MAP_X_LEFT_PADDING = 30.0f;
-constexpr static float MAP_X_RIGHT_PADDING = 30.0f;
-
-constexpr static float MAP_Y_TOP_PADDING = 70.0f;
-constexpr static float MAP_Y_BOTTOM_PADDING = 20.0f;
-
-constexpr Rectangle MAP_RECT = {
-    MAP_X_LEFT_PADDING,
-    MAP_Y_TOP_PADDING,
-    SCREEN_WIDTH - MAP_X_LEFT_PADDING - MAP_X_RIGHT_PADDING,
-    SCREEN_HEIGHT - MAP_Y_TOP_PADDING - MAP_Y_BOTTOM_PADDING
-};
+constexpr static float MAP_LEFT_BOUND = 0.0f;
+constexpr static float MAP_RIGHT_BOUND = SCREEN_WIDTH;
+constexpr static float MAP_TOP_BOUND = 0.0f;
+constexpr static float MAP_BOTTOM_BOUND = SCREEN_HEIGHT;
 
 constexpr static float ROUND_MAX_TIME_SEC = 90.0f;
 constexpr static float ROUND_COUNTDOWN_SEC = 3.0f;
-
-// Where the players are positioned and what x-coordinate a puck needs to cross
-// to score
-constexpr static float GOAL_X_OFFSET = 100.0f;
-constexpr float RED_GOAL_X = GOAL_X_OFFSET;
-constexpr float BLUE_GOAL_X = SCREEN_WIDTH - GOAL_X_OFFSET;
 
 // UI positions and sizes
 

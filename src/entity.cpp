@@ -1,5 +1,7 @@
 #include "entity.h"
 
+#include "constants.h"
+
 uint32_t Entity::idCounter = 0;
 
 std::map<uint32_t, std::unique_ptr<Entity>>& Entity::registry() {
@@ -49,7 +51,7 @@ void Entity::render() const {
     };
 
     // Render the texture on screen
-    this->texture.render(destinationArea, originOffset, this->angle, WHITE);
+    this->texture.render(destinationArea, originOffset, this->angle);
 
     //this->displayCollider();
 }
@@ -72,6 +74,10 @@ void PhysicsEntity::resetColliderFlags() {
  * positions and collider dimensions, and `false` otherwise.
  */
 bool PhysicsEntity::isColliding(const PhysicsEntity* other) const {
+    if (!this->canCollideWith(other)) {
+        return false;
+    }
+
     float xDistance = fabs(this->position.x - other->position.x)
         - ((this->colliderDimensions.x + other->colliderDimensions.x) / 2.0f);
     float yDistance = fabs(this->position.y - other->position.y)
@@ -178,6 +184,10 @@ void PhysicsEntity::checkCollisionsY() {
 }
 
 void PhysicsEntity::collideAndMove(float deltaTime) {
+    if (this->anchored) {
+        return;
+    }
+
     this->resetColliderFlags();
     this->collisions.clear();
 
@@ -213,6 +223,30 @@ void PhysicsEntity::displayCollider() const {
     );
 }
 
+bool PhysicsEntity::isOutOfBounds() const {
+    if (this->velocity.x > 0.0f) { // Moving right
+        if (this->position.x - this->scale.x / 2 >= constants::MAP_RIGHT_BOUND) {
+            return true;
+        }
+    } else if (this->velocity.x < 0.0f) { // Moving left
+        if (this->position.x + this->scale.x / 2 <= constants::MAP_LEFT_BOUND) {
+            return true;
+        }
+    }
+
+    if (this->velocity.y > 0.0f) { // Moving up
+        if (this->position.y - this->scale.y / 2 <= constants::MAP_TOP_BOUND) {
+            return true;
+        }
+    } else if (this->velocity.y < 0.0f) { // Moving down
+        if (this->position.y + this->scale.y / 2 >= constants::MAP_BOTTOM_BOUND) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void PhysicsEntity::setCollisionCandidates(const std::vector<PhysicsEntity*>& entities) {
     this->collisionCandidates.clear();
 
@@ -220,6 +254,8 @@ void PhysicsEntity::setCollisionCandidates(const std::vector<PhysicsEntity*>& en
         this->collisionCandidates.push_back(e);
     }
 }
+
+void PhysicsEntity::applyForce() {}
 
 void PhysicsEntity::update(float deltaTime) {
     if (!this->shouldUpdate()) {
