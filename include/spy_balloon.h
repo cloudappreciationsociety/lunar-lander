@@ -15,29 +15,44 @@ struct DamageLog {
     std::vector<Entry> entries;
 };
 
-class SpyBalloon: public PhysicsEntity {
+class ForceField: public PhysicsEntity {
+public:
+    float startTime = 0.0f;
+    float duration = 3.0f;
+    float radius = 10.0f;
+
+public:
+    ForceField();
+};
+
+class SpyBalloon: public Actor {
 private:
     static constexpr float STARTING_FUEL = 400.0f;
     static constexpr float STARTING_HEALTH = 1000.0f;
-    static constexpr float G_ACCEL_MULTIPLIER = 0.10f;
+    static constexpr float G_ACCEL_MULTIPLIER = 0.05f;
     static constexpr float DRAG = 2.0f;
-    static constexpr float MOVE_ACCEL_X = 10.0f;
+    static constexpr float MOVE_ACCEL_X = 30.0f;
 
-    static constexpr float MOVE_FUEL_DRAIN = -0.025f;
+    static constexpr float MOVE_FUEL_DRAIN = -0.05f;
 
 private:
     Vector2 moveDirection = {0.0f, 0.0f};
 
 public:
     float fuel = SpyBalloon::STARTING_FUEL;
-    float health = SpyBalloon::STARTING_HEALTH;
+    bool landedSuccessfully = false;
 
     std::vector<std::pair<float, Vector2>> damageLog;
+
+    float lastRepulsionShieldUseTime = 0.0f;
 
 private:
     void addFuel(float amount) {
         this->fuel = std::max(0.0f, this->fuel + amount);
     }
+
+    void clampPositionInMap();
+    void activateRepulsionShield();
 
 public:
     SpyBalloon();
@@ -47,12 +62,6 @@ public:
 
     void update(float deltaTime) override;
     void render() const override;
-
-    bool isAlive() const {
-        return this->health >= 0.0f;
-    }
-
-    void takeDamage(float damage, Vector2 damageOrigin);
 
     void handleCollision(PhysicsEntity::Collision collision) override;
 };

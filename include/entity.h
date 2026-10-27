@@ -19,7 +19,6 @@ private:
     static uint32_t idCounter;
 
 protected:
-    EntityTexture texture;
     bool shouldDelete = false;
 
 public:
@@ -28,6 +27,7 @@ public:
     Vector2 scale = {Entity::DEFAULT_SIZE, Entity::DEFAULT_SIZE};
     float angle = 0.0f;
 
+    EntityTexture texture;
     EntityStatus status = EntityStatus::ACTIVE;
 
 protected:
@@ -78,6 +78,7 @@ public:
     }
 };
 
+// An entity that interacts with the world, physically
 class PhysicsEntity: public Entity {
 private:
     static constexpr float Y_COLLISION_THRESHOLD = 0.5f;
@@ -113,6 +114,8 @@ private:
 
 protected:
     void collideAndMove(float deltaTime);
+    void applyDragX(float deltaTime, float dragCoefficient);
+
     void displayCollider() const;
 
     bool isOutOfBounds() const;
@@ -129,9 +132,34 @@ public:
     using Entity::Entity;
 
     void setCollisionCandidates(const std::vector<PhysicsEntity*>& entities);
-    void applyForce();
     void update(float deltaTime) override;
     void render() const override;
+
+    bool isStationary() const {
+        return Vector2Length(this->velocity) < 0.001f;
+    }
+};
+
+// An entity with health
+class Actor: public PhysicsEntity {
+public:
+    float health = 0.0f;
+
+public:
+    using PhysicsEntity::PhysicsEntity;
+
+    bool isAlive() const {
+        return this->health > 0.0f;
+    }
+
+    virtual void takeDamage(float damage) {
+        this->health = std::max(0.0f, this->health - damage);
+    }
+
+    virtual void takeDamage(float damage, Vector2 addVelocity) {
+        this->takeDamage(damage);
+        this->velocity = Vector2Add(this->velocity, addVelocity);
+    }
 };
 
 #endif // ENTITY_H

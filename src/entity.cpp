@@ -52,8 +52,6 @@ void Entity::render() const {
 
     // Render the texture on screen
     this->texture.render(destinationArea, originOffset, this->angle);
-
-    //this->displayCollider();
 }
 
 void PhysicsEntity::resetColliderFlags() {
@@ -205,6 +203,17 @@ void PhysicsEntity::collideAndMove(float deltaTime) {
     }
 }
 
+void PhysicsEntity::applyDragX(float deltaTime, float dragCoefficient) {
+    float dragForce = -dragCoefficient * this->velocity.x;
+
+    // If one step of drag would reverse the velocity, set it exactly to zero instead
+    if (std::fabs(dragForce * deltaTime) > std::fabs(this->velocity.x)) {
+        dragForce = -this->velocity.x / deltaTime;
+    }
+
+    this->acceleration.x = dragForce;
+}
+
 void PhysicsEntity::displayCollider() const {
     // draw the collision box
     Rectangle colliderBox = {
@@ -254,8 +263,6 @@ void PhysicsEntity::setCollisionCandidates(const std::vector<PhysicsEntity*>& en
         this->collisionCandidates.push_back(e);
     }
 }
-
-void PhysicsEntity::applyForce() {}
 
 void PhysicsEntity::update(float deltaTime) {
     if (!this->shouldUpdate()) {

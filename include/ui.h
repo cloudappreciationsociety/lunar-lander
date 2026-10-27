@@ -28,4 +28,13 @@ public:
     void render(void) const;
 };
 
+class ProgressBar {
+public:
+    Vector2 position = {0};
+    Vector2 size = {0};
+
+public:
+    ProgressBar() = default;
+};
+
 #endif

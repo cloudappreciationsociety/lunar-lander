@@ -16,7 +16,7 @@ constexpr Vector2 SCREEN_SIZE = {
     static_cast<float>(SCREEN_HEIGHT)
 };
 
-constexpr float G_ACCEL = 9.0f;
+constexpr float G_ACCEL = 98.0f;
 
 constexpr float FIXED_TIMESTEP = 1.0f / TARGET_FPS;
 

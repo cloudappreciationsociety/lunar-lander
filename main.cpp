@@ -23,7 +23,7 @@
 enum class GameStatus { IN_MENU, STARTING, IN_PROGRESS, ENDED };
 
 AppStatus gAppStatus = AppStatus::RUNNING;
-GameStatus gGameStatus = GameStatus::IN_PROGRESS;
+GameStatus gGameStatus = GameStatus::IN_MENU;
 
 float gTimeAccumulator = 0.0f;
 float gPreviousTimestampSec = 0.0f;
@@ -44,7 +44,22 @@ Military* gMilitary = nullptr;
 void resetGame() {
     gRoundCountdown = constants::ROUND_COUNTDOWN_SEC;
 
-    // Delete all pucks
+    gSpyBalloon->position = constants::SCREEN_CENTER;
+    gSpyBalloon->position.y = 100.0f;
+    gSpyBalloon->health = 1000.0f;
+    gSpyBalloon->acceleration.y = constants::G_ACCEL;
+    gSpyBalloon->velocity = {0.0f, 0.0f};
+    gSpyBalloon->landedSuccessfully = false;
+
+    // Delete
+    for (auto& pair : Entity::registry()) {
+        auto ptr = pair.second.get();
+
+        if (dynamic_cast<MilitaryVehicle*>(ptr) || dynamic_cast<Missile*>(ptr)
+            || dynamic_cast<Explosion*>(ptr)) {
+            ptr->markForDeletion();
+        }
+    }
 }
 
 void initialize() {
@@ -54,18 +69,23 @@ void initialize() {
 
     // Textures
     TextureAsset* spyBalloonTexture =
-        TextureAsset::create(new TextureAsset("spy_balloon", "assets/textures/ai.png"));
-    spyBalloonTexture->type = TextureType::SINGLE;
+        TextureAsset::create(new TextureAsset("spy_balloon", "assets/textures/spy-balloon.png"));
 
     gGrassTileTexture =
         TextureAsset::create(new TextureAsset("grass_tile", "assets/textures/grass-tile.png"));
-    gGrassTileTexture->type = TextureType::SINGLE;
 
     TextureAsset* explosionTexture =
         TextureAsset::create(new TextureAsset("explosion", "assets/textures/explosion.png"));
     explosionTexture->type = TextureType::ATLAS;
     explosionTexture->spriteSheetDimensions = {4, 4};
     explosionTexture->useDefaultAnimation();
+
+    TextureAsset* groundExplosionTexture = TextureAsset::create(
+        new TextureAsset("ground_explosion", "assets/textures/ground-explosion.png")
+    );
+    groundExplosionTexture->type = TextureType::ATLAS;
+    groundExplosionTexture->spriteSheetDimensions = {1, 7};
+    groundExplosionTexture->useDefaultAnimation();
 
     TextureAsset* fighterJetTexture =
         TextureAsset::create(new TextureAsset("fighter_jet", "assets/textures/fighter-jet.png"));
@@ -79,11 +99,12 @@ void initialize() {
     missileTexture->spriteSheetDimensions = {1, 3};
     missileTexture->useDefaultAnimation();
 
+    TextureAsset::create(new TextureAsset("aa_gun", "assets/textures/aa-gun.png"));
+    TextureAsset::create(new TextureAsset("shell", "assets/textures/shell.png"));
+    TextureAsset::create(new TextureAsset("parachute", "assets/textures/parachute.png"));
+
     // Entities
     gSpyBalloon = Entity::create(new SpyBalloon);
-    gSpyBalloon->position = constants::SCREEN_CENTER;
-    gSpyBalloon->position.y = 100.0f;
-
     gSpyBalloon->scale = {50.0f, 50.0f};
     gSpyBalloon->colliderDimensions = Vector2Scale(gSpyBalloon->scale, 1.0f);
     gSpyBalloon->acceleration.y = constants::G_ACCEL;
@@ -91,11 +112,11 @@ void initialize() {
     gMilitary = new Military(gSpyBalloon);
 
     Vector2 tileSize = {50.0f, 50.0f};
-    int32_t tileCount = constants::SCREEN_WIDTH / tileSize.x;
+    uint32_t tileCount = 2 * constants::SCREEN_WIDTH / tileSize.x;
 
     float leftMostX = constants::SCREEN_CENTER.x - (tileCount * tileSize.x) / 2.0f;
 
-    for (int32_t i = 0; i < tileCount; ++i) {
+    for (uint32_t i = 0; i < tileCount; ++i) {
         auto tile = Entity::create(new PhysicsEntity(gGrassTileTexture));
         tile->scale = tileSize;
         tile->colliderDimensions = tile->scale;
@@ -200,9 +221,13 @@ void updateGameStarting(float deltaTime) {
 }
 
 void updateGameInProgress(float deltaTime) {
+    if (!gSpyBalloon->isAlive() || gSpyBalloon->landedSuccessfully) {
+        gGameStatus = GameStatus::ENDED;
+    }
+
     gMilitary->update(deltaTime);
 
-    // Collisions
+    // Set collision candidates
     for (auto& pair : Entity::registry()) {
         Entity* ptr = pair.second.get();
         if (auto mv = dynamic_cast<MilitaryVehicle*>(ptr)) {
@@ -217,8 +242,6 @@ void updateGameInProgress(float deltaTime) {
     }
 
     gSpyBalloon->setCollisionCandidates(gMapTiles);
-
-    for (auto& pair : Entity::registry()) {}
 }
 
 void update() {
@@ -288,15 +311,26 @@ void render() {
             gPlayButton.render();
             gQuitButton.render();
 
+            drawText(
+                "Save the Chinese Spy Balloon",
+                {constants::SCREEN_CENTER.x, constants::SCREEN_CENTER.y - 50},
+                constants::ui::HEADER_FONT_SIZE,
+                WHITE
+            );
+
             break;
         }
         case (GameStatus::STARTING): {
             renderTintedOverlay();
             drawText(
-                TextFormat(
-                    "Match begins in %i seconds...",
-                    static_cast<int32_t>(std::ceil(gRoundCountdown))
-                ),
+                "Embarrass the US military by landing\n the balloon in spite of their efforts.",
+                {constants::SCREEN_CENTER.x, constants::SCREEN_CENTER.y - 100},
+                constants::ui::HEADER_FONT_SIZE,
+                WHITE
+            );
+
+            drawText(
+                TextFormat("Starting in %i...", static_cast<int32_t>(std::ceil(gRoundCountdown))),
                 constants::SCREEN_CENTER,
                 constants::ui::HEADER_FONT_SIZE,
                 WHITE
@@ -306,16 +340,39 @@ void render() {
         }
         case (GameStatus::IN_PROGRESS): {
             drawText(
+                TextFormat("Health: %i", static_cast<int32_t>(std::ceil(gSpyBalloon->health))),
+                {100, 50},
+                constants::ui::FONT_SIZE,
+                BLACK
+            );
+
+            drawText(
                 TextFormat("Fuel: %i", static_cast<int32_t>(std::ceil(gSpyBalloon->fuel))),
-                constants::SCREEN_CENTER,
-                constants::ui::HEADER_FONT_SIZE,
-                WHITE
+                {100, 100},
+                constants::ui::FONT_SIZE,
+                BLACK
             );
 
             break;
         }
         case (GameStatus::ENDED): {
             renderTintedOverlay();
+
+            if (gSpyBalloon->isAlive()) {
+                drawText(
+                    "Hooray! You saved the spy balloon\n and brought shame to the military!",
+                    constants::SCREEN_CENTER,
+                    constants::ui::HEADER_FONT_SIZE,
+                    WHITE
+                );
+            } else {
+                drawText(
+                    "Oh no, they weren't as dumb as we thought!",
+                    constants::SCREEN_CENTER,
+                    constants::ui::HEADER_FONT_SIZE,
+                    WHITE
+                );
+            }
 
             gBackToMenuButton.render();
             gQuitButton.render();
