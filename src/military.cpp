@@ -5,7 +5,7 @@
 #include "texture.h"
 
 FighterJet::FighterJet() : MilitaryVehicle(TextureAsset::get("fighter_jet")) {
-    this->health = FighterJet::BASE_HEALTH;
+    this->maxHealth = this->health = FighterJet::BASE_HEALTH;
 }
 
 void FighterJet::explode() {
@@ -70,7 +70,7 @@ void FighterJet::update(float deltaTime) {
     this->collideAndMove(deltaTime);
 
     // Explosions and collisions may have set our velocity to 0 or below our cruising speed.
-    // So maintain the base speed after the movement update.
+    // Maintain the base speed after the movement update.
     if (this->cruiseVelocityX > 0.0f) {
         this->velocity.x = std::max(this->cruiseVelocityX, this->velocity.x);
     } else {
@@ -102,7 +102,7 @@ void FighterJet::handleCollision(PhysicsEntity::Collision collision) {
             this->takeDamage(this->health, {0.0f, 0.0f});
             this->explode();
         }
-    } else if (collision.entity->anchored) { // Hit the ground; blow up
+    } else if (collision.entity->anchored) { // Hit the ground / stationary object
         this->explode();
     }
 }
@@ -110,7 +110,7 @@ void FighterJet::handleCollision(PhysicsEntity::Collision collision) {
 AntiAircraftGun::AntiAircraftGun() :
     MilitaryVehicle(TextureAsset::get("aa_gun")),
     lastFireTime(static_cast<float>(GetTime())) {
-    this->health = AntiAircraftGun::BASE_HEALTH;
+    this->maxHealth = this->health = AntiAircraftGun::BASE_HEALTH;
 }
 
 void AntiAircraftGun::explode() {
@@ -198,6 +198,9 @@ void AntiAircraftGun::handleCollision(PhysicsEntity::Collision collision) {
             this->takeDamage(this->health, {0.0f, 0.0f});
             this->explode();
         }
+    } else if (auto forceField = dynamic_cast<ForceField*>(collision.entity)) {
+        this->takeDamage(this->health, {0.0f, 0.0f});
+        this->explode();
     }
 }
 
@@ -280,6 +283,12 @@ void Explosion::explode() {
         Vector2 knockbackVector = Vector2Scale(direction, knockbackStrength);
 
         if (auto actor = dynamic_cast<Actor*>(entity)) {
+            // Don't damage if we have a force field enabled.
+            if (auto balloon = dynamic_cast<SpyBalloon*>(actor)) {
+                if (balloon->forceField) {
+                    continue;
+                }
+            }
             actor->takeDamage(this->damage, knockbackVector);
         } else if (auto proj = dynamic_cast<Missile*>(entity)) {
             entity->velocity = Vector2Add(entity->velocity, knockbackVector);
@@ -370,8 +379,15 @@ void Military::update(float deltaTime) {
         }
     }
 
+    // Reduce spawn interval if we're at the bottom half of the screen and about to win
+    if (this->target->position.y >= constants::SCREEN_HEIGHT / 2.0f) {
+        this->spawnInterval = Military::SPAWN_INTERVAL / 1.5f;
+    } else {
+        this->spawnInterval = Military::SPAWN_INTERVAL;
+    }
+
     float now = static_cast<float>(GetTime());
-    if (now < this->lastSpawnTime + this->SPAWN_INTERVAL) {
+    if (now < this->lastSpawnTime + this->spawnInterval) {
         return;
     }
 

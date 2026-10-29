@@ -36,6 +36,10 @@ TextButton gBackToMenuButton;
 TextButton gPlayButton;
 TextButton gQuitButton;
 
+ProgressBar gHealthBar;
+ProgressBar gFuelBar;
+AbilityStatus gForceFieldStatus;
+
 TextureAsset* gGrassTileTexture = nullptr;
 SpyBalloon* gSpyBalloon = nullptr;
 std::vector<PhysicsEntity*> gMapTiles;
@@ -46,10 +50,12 @@ void resetGame() {
 
     gSpyBalloon->position = constants::SCREEN_CENTER;
     gSpyBalloon->position.y = 100.0f;
-    gSpyBalloon->health = 1000.0f;
+    gSpyBalloon->health = gSpyBalloon->maxHealth;
+    gSpyBalloon->fuel = gSpyBalloon->maxFuel;
     gSpyBalloon->acceleration.y = constants::G_ACCEL;
     gSpyBalloon->velocity = {0.0f, 0.0f};
     gSpyBalloon->landedSuccessfully = false;
+    gSpyBalloon->lastForceFieldUseTime = -gSpyBalloon->forceFieldCooldown;
 
     // Delete
     for (auto& pair : Entity::registry()) {
@@ -59,6 +65,11 @@ void resetGame() {
             || dynamic_cast<Explosion*>(ptr)) {
             ptr->markForDeletion();
         }
+    }
+
+    if (gSpyBalloon->forceField) {
+        gSpyBalloon->forceField->markForDeletion();
+        gSpyBalloon->forceField = nullptr;
     }
 }
 
@@ -101,7 +112,7 @@ void initialize() {
 
     TextureAsset::create(new TextureAsset("aa_gun", "assets/textures/aa-gun.png"));
     TextureAsset::create(new TextureAsset("shell", "assets/textures/shell.png"));
-    TextureAsset::create(new TextureAsset("parachute", "assets/textures/parachute.png"));
+    TextureAsset::create(new TextureAsset("force_field", "assets/textures/force-field.png"));
 
     // Entities
     gSpyBalloon = Entity::create(new SpyBalloon);
@@ -151,6 +162,26 @@ void initialize() {
     gQuitButton.hoverColor = PINK;
     gQuitButton.text = "QUIT";
 
+    gHealthBar.position = {125.0f, 50.0f};
+    gHealthBar.backgroundColor = BLACK;
+    gHealthBar.barColor = RED;
+    gHealthBar.textColor = WHITE;
+    gHealthBar.size = {200.0f, 40.0f};
+    gHealthBar.title = "HP";
+
+    gFuelBar.position = {125.0f, 100.0f};
+    gFuelBar.backgroundColor = BLACK;
+    gFuelBar.barColor = BROWN;
+    gFuelBar.textColor = WHITE;
+    gFuelBar.size = {200.0f, 40.0f};
+    gFuelBar.title = "Fuel";
+
+    gForceFieldStatus.position = {300.0f, 80.0f};
+    gForceFieldStatus.backgroundColor = GOLD;
+    gForceFieldStatus.size = {80.0f, 80.0f};
+    gForceFieldStatus.texture = TextureAsset::get("force_field");
+    gForceFieldStatus.key = KeyboardKey::KEY_F;
+
     gPreviousTimestampSec = static_cast<float>(GetTime());
 }
 
@@ -179,6 +210,10 @@ void processInput() {
 
             if (IsKeyDown(KeyboardKey::KEY_W)) {
                 gSpyBalloon->onInput(KeyboardKey::KEY_W);
+            }
+
+            if (IsKeyDown(KeyboardKey::KEY_F)) {
+                gSpyBalloon->onInput(KeyboardKey::KEY_F);
             }
 
             if (IsKeyDown(KeyboardKey::KEY_A)) {
@@ -323,7 +358,7 @@ void render() {
         case (GameStatus::STARTING): {
             renderTintedOverlay();
             drawText(
-                "Embarrass the US military by landing\n the balloon in spite of their efforts.",
+                "Land our balloon by any means necessary.",
                 {constants::SCREEN_CENTER.x, constants::SCREEN_CENTER.y - 100},
                 constants::ui::HEADER_FONT_SIZE,
                 WHITE
@@ -339,18 +374,11 @@ void render() {
             break;
         }
         case (GameStatus::IN_PROGRESS): {
-            drawText(
-                TextFormat("Health: %i", static_cast<int32_t>(std::ceil(gSpyBalloon->health))),
-                {100, 50},
-                constants::ui::FONT_SIZE,
-                BLACK
-            );
-
-            drawText(
-                TextFormat("Fuel: %i", static_cast<int32_t>(std::ceil(gSpyBalloon->fuel))),
-                {100, 100},
-                constants::ui::FONT_SIZE,
-                BLACK
+            gHealthBar.render(gSpyBalloon->health, gSpyBalloon->maxHealth);
+            gFuelBar.render(gSpyBalloon->fuel, gSpyBalloon->maxFuel);
+            gForceFieldStatus.render(
+                gSpyBalloon->lastForceFieldUseTime,
+                gSpyBalloon->forceFieldCooldown
             );
 
             break;
@@ -360,14 +388,14 @@ void render() {
 
             if (gSpyBalloon->isAlive()) {
                 drawText(
-                    "Hooray! You saved the spy balloon\n and brought shame to the military!",
+                    "Hooray! You saved the spy balloon!",
                     constants::SCREEN_CENTER,
                     constants::ui::HEADER_FONT_SIZE,
                     WHITE
                 );
             } else {
                 drawText(
-                    "Oh no, they weren't as dumb as we thought!",
+                    "Oh no, they blew us up!",
                     constants::SCREEN_CENTER,
                     constants::ui::HEADER_FONT_SIZE,
                     WHITE

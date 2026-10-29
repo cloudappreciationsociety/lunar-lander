@@ -132,13 +132,12 @@ private:
 
     static constexpr float AA_GUN_SPAWN_THRESHOLD = 0.15f;
 
-    static constexpr uint32_t MAX_AA_GUNS_ON_GROUND = 2;
-
 private:
     Actor* target = nullptr;
     float lastSpawnTime = 0.0f;
     std::mt19937 randomEngine;
     std::uniform_real_distribution<float> randomDist;
+    float spawnInterval = Military::SPAWN_INTERVAL;
 
 public:
     // What missiles can collide with
@@ -146,8 +145,6 @@ public:
 
     // What vehicles can collide with
     std::vector<PhysicsEntity*> vehicleCollisionCandidates;
-
-    uint32_t groundAAGunCount = 0;
 
 private:
     float getRandomFloat() {

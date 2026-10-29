@@ -144,6 +144,7 @@ public:
 class Actor: public PhysicsEntity {
 public:
     float health = 0.0f;
+    float maxHealth = 0.0f;
 
 public:
     using PhysicsEntity::PhysicsEntity;
